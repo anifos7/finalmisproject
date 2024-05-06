@@ -1,0 +1,144 @@
+# prompt: convert this google sheet link to a api link for pandas: https://docs.google.com/spreadsheets/d/1v0PbirdrGxcYHht4WOVHlplWCKM1T9SMeweKCx8vFxk/edit?usp=sharing
+
+import pandas as pd
+
+sheet_url = 'https://docs.google.com/spreadsheets/d/1v0PbirdrGxcYHht4WOVHlplWCKM1T9SMeweKCx8vFxk/edit?usp=sharing'
+sheet_id = sheet_url.split('/')[-2]
+api_url = f'https://docs.google.com/spreadsheets/d/{sheet_id}/gviz/tq?tqx=out:csv'
+
+df = pd.read_csv(api_url)
+
+
+df['price'] = df['price'].str.replace('$', '').astype(float).round(2)
+df
+
+bobbi_brown_df = df[df['brand'] == 'Bobbi Brown']
+buxom_df = df[df['brand'] == 'Buxom']
+clinique_df = df[df['brand'] == 'CLINIQUE']
+dior_df = df[df['brand'] == 'Dior']
+givenchy_df = df[df['brand'] == 'Givenchy']
+guerlain_df = df[df['brand'] == 'Guerlain']
+lancome_df = df[df['brand'] == 'Lancôme']
+mac_df = df[df['brand'] == 'MAC Cosmetics']
+make_up_for_ever_df = df[df['brand'] == 'MAKE UP FOR EVER']
+nars_df = df[df['brand'] == 'NARS']
+rare_beauty_df = df[df['brand'] == 'Rare Beauty by Selena Gomez']
+sephora_collection_df = df[df['brand'] == 'SEPHORA COLLECTION']
+urban_decay_df = df[df['brand'] == 'Urban Decay']
+fresh_df = df[df['brand'] == 'fresh']
+
+# Combine all the dataframes into a single dataframe
+all_brands_df = pd.concat([bobbi_brown_df, buxom_df, clinique_df, dior_df, givenchy_df, guerlain_df, lancome_df, mac_df, make_up_for_ever_df, nars_df, rare_beauty_df, sephora_collection_df, urban_decay_df, fresh_df])
+
+# Display the combined dataframe
+all_brands_df
+
+
+def filter_products_by_brand(df, brand_name):
+    brand_name_lower = brand_name.lower()
+    return df[df['brand'].str.lower().str.contains(brand_name_lower)]
+
+# Function to print products by brand
+def print_products_by_brand(df, keyword):
+    brand_mapping = {
+        'bobbi brown': 'Bobbi Brown',
+        'buxom': 'Buxom',
+        'clinique': 'CLINIQUE',
+        'dior': 'Dior',
+        'givenchy': 'Givenchy',
+        'guerlain': 'Guerlain',
+        'lancome': 'Lancôme',
+        'mac': 'MAC Cosmetics',
+        'make up for ever': 'MAKE UP FOR EVER',
+        'nars': 'NARS',
+        'rare beauty': 'Rare Beauty by Selena Gomez',
+        'sephora collection': 'SEPHORA COLLECTION',
+        'urban decay': 'Urban Decay',
+        'fresh': 'fresh'
+    }
+    matched_brand = None
+    keyword_lower = keyword.lower()
+    for key, value in brand_mapping.items():
+        if keyword_lower in key:
+            matched_brand = value
+            break
+    if matched_brand:
+        filtered_df = filter_products_by_brand(df, matched_brand)
+        if filtered_df.empty:
+            print(f"No products found for {matched_brand}.")
+        else:
+            print("\n")
+            print(f"{'Product Name':<50} {'Brand':<40} {'Price':<10}")
+            print("-" * 100)
+            for index, row in filtered_df.iterrows():
+                product_name = row['product_name'][:50].ljust(50)
+                brand = row['brand'][:40].ljust(40)
+                price = f"${row['price']}".ljust(10)
+                print(f"{product_name} {brand} {price}")
+    else:
+        print("Invalid brand keyword.")
+
+# Prompt user for brand keyword
+while True:
+    keyword = input("Enter the brand you would like to view (type 'next' to continue to budget): ")
+    if keyword.lower() == 'next':
+        break
+    # Print products by brand
+    print_products_by_brand(df, keyword)
+
+def filter_products_by_type(df, budget, product_type):
+    filtered_df = df[(df['price'] <= budget) & (df['product_name'].str.lower().str.contains(product_type.lower()))]
+    return filtered_df[['product_name', 'brand', 'price', 'likes_count']]
+
+# Function to print products nicely
+def print_products(filtered_products):
+    print("Product Name".ljust(50), "Brand".ljust(30), "Price".rjust(10), "Likes".rjust(10))
+    print("-" * 100)
+    for index, row in filtered_products.iterrows():
+        product_name = row['product_name']
+        brand = row['brand']
+        price = f"${row['price']:.2f}"
+        likes_count = row['likes_count']
+        print(f"{product_name: <50} {brand: <30} {price: >10} {likes_count: >10}")
+    print("-" * 100)
+
+# Load your data here 
+
+overall_budget = float(input("Enter your overall budget: "))
+remaining_budget = overall_budget
+filtered_products_list = []
+
+while True:
+    product_type = input("Enter the product type you are looking for (or type 'done' to finish): ")
+    if product_type.lower() == 'done':
+        break
+
+    filtered_products = filter_products_by_type(df, remaining_budget, product_type)
+
+    if not filtered_products.empty:
+        print_products(filtered_products)
+
+        selected_product = input("Enter the name of the product you want to purchase: ").lower()
+
+        if selected_product in filtered_products['product_name'].str.lower().values:
+            selected_product_price = filtered_products.loc[filtered_products['product_name'].str.lower() == selected_product, 'price'].iloc[0]
+            if remaining_budget - selected_product_price < 0:
+                print("You have exceeded your budget.")
+            else:
+                remaining_budget -= selected_product_price
+                print(f"Remaining budget: ${remaining_budget:.2f}")
+                filtered_products_list.append(filtered_products.loc[filtered_products['product_name'].str.lower() == selected_product])
+        else:
+            print("Invalid product selection. Please try again.")
+    else:
+        print("All options are over budget.")
+        break
+
+if filtered_products_list:
+    filtered_products_df = pd.concat(filtered_products_list)
+    print("Final shopping list:")
+    print_products(filtered_products_df)
+    total_money = filtered_products_df['price'].sum()
+    print(f"Total money spent: ${total_money:.2f}")
+else:
+    print("No products selected.")
